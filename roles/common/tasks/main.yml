@@ -3,6 +3,9 @@
   - debug:
       msg: "ENV is {{ ENV }}."
 
+  - debug:
+      msg: "Platform is {{ Platform }}."
+
   - name: Disable SELinux
     selinux:
       state: disabled

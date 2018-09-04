@@ -13,6 +13,6 @@
 
   roles:
     - role: common
-      ENV: ENV
-      Platform: Platform
+      ENV: {{ ENV }}
+      Platform: {{ Platform }}
     
