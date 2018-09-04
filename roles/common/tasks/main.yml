@@ -1,0 +1,151 @@
+---
+
+  - debug:
+      msg: "ENV is {{ ENV }}."
+
+  - name: Disable SELinux
+    selinux:
+      state: disabled
+
+  - name: Check if firewalld exists
+    stat: path=/usr/lib/systemd/system/firewalld.service
+    register: firewalld_status
+
+  - name: Stop and disable firewalld
+    systemd:
+      name: firewalld
+      state: stopped
+      enabled: no
+    when: firewalld_status.stat.exists
+
+  - name: Installing EPEL repo
+    yum : state=latest name='epel-release'
+
+  - name: Install packages
+    yum: state=latest name={{ item }}
+    with_items:
+      - telnet
+      - bind-utils
+      - wget
+      - ntp
+      - traceroute
+      - screen
+      - net-tools
+      - sysstat
+      - https://mirror.webtatic.com/yum/el7/webtatic-release.rpm
+      - git
+      - gcc
+      - glibc.x86_64
+      - libgcc.x86_64
+      - nfs-utils
+      - python-passlib.noarch
+      - supervisor.noarch
+
+  - name: Timezone 
+    timezone:
+      name: UTC
+
+  - name: NTP crontab
+    lineinfile:
+      path: /etc/crontab
+      state: present
+      line: '5 */8 * * * root (/usr/sbin/ntpdate pool.ntp.org) > /dev/null 2>&1'
+
+  - cron:
+      name: NTP
+      job: "(/usr/sbin/ntpdate time.google.com time1.google.com time2.google.com time3.google.com time4.google.com) > /dev/null 2>&1"
+      hour: "*/8"
+      minute: "5"
+      state: present
+      cron_file: /etc/crontab
+      user: root
+
+  - cron:
+      name: Clear root mail
+      job: "(/bin/cp -f /dev/null /var/spool/mail/root;/bin/chmod 0600 /var/spool/mail/root) > /dev/null 2>&1"
+      hour: "10"
+      minute: "0"
+      state: present
+      cron_file: /etc/crontab
+      user: root
+
+  - cron:
+      name: Clear /var/tmp
+      job: "(/bin/find /var/tmp/ -type f -mtime +7  | xargs /bin/rm -rf) > /dev/null 2>&1"
+      hour: "10"
+      minute: "0"
+      state: present
+      cron_file: /etc/crontab
+      user: root
+
+  - name: Modify sysctl.conf
+    lineinfile:
+      path: /etc/sysctl.conf
+      state: present
+      line: '{{ item }}'
+    with_items:
+      - net.ipv4.tcp_syncookies = 1
+      - net.ipv4.tcp_tw_reuse = 1
+      - net.ipv4.tcp_tw_recycle = 1
+      - net.ipv4.tcp_fin_timeout = 30
+
+  - name: Modify sshd.conf
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      state: present
+      line: '{{ item }}'
+    with_items:
+      - ClientAliveInterval 30
+      - TCPKeepAlive yes
+      - ClientAliveCountMax 99999
+    notify: restart sshd
+
+  - name: Modify system.conf
+    lineinfile:
+      path: /etc/systemd/system.conf
+      state: present
+      line: '{{ item }}'
+    with_items:
+      - DefaultLimitCORE=infinity
+      - DefaultLimitNOFILE=100000
+      - DefaultLimitNPROC=100000
+
+  - name: Modify limits.conf
+    lineinfile:
+      path: /etc/security/limits.conf
+      state: present
+      line: '{{ item }}'
+    with_items:
+      - '*      soft   nofile      1048576'
+      - '*      hard   nofile      1048576'
+
+  - name: Add swap
+    stat: path=/var/swap.1
+    register: swap_status
+    when: Platform == "AWS" or Platform == "GCP"
+
+  - shell: |
+      /usr/bin/dd if=/dev/zero of=/var/swap.1 bs=1M count=1024
+      /usr/sbin/mkswap /var/swap.1
+      /usr/bin/chmod 600 /var/swap.1
+      /sbin//swapon /var/swap.1
+    when: (Platform == "AWS" or Platform == "GCP") and swap_status.stat.exists == false
+
+  - lineinfile:
+      path: /etc/fstab
+      state: present
+      line: '/var/swap.1     swap                                            swap    defaults        0 0'
+    when: Platform == "AWS" or Platform == "GCP"
+
+  - name: Modify /etc/group
+    shell: "/bin/sed -i 's/x:33:/x:333:/g' /etc/group"
+    
+  - name: admin script folder
+    file: path="/home/centos/sh" state=directory group="centos" owner="centos"
+
+  - file: path="/etc/rc.d/rc.local" state=file owner="root" group="root" mode=0755
+
+  - name: systemd enable services
+    systemd: name={{ item }} enabled=yes masked=no
+    with_items:
+      - supervisord

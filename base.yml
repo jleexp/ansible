@@ -1,0 +1,16 @@
+---
+- name: Play common tasks
+  hosts: localhost
+  gather_facts: no
+  vars:
+    ENV: "production"
+    Platform: "GCP"
+
+#  vars_files:
+#    - group_vars/{{ env }}
+
+  roles:
+    - role: common
+      ENV: ENV
+      Platform: Platform
+    
