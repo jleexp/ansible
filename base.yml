@@ -13,6 +13,3 @@
 
   roles:
     - role: common
-      ENV: "{{ ENV }}"
-      Platform: "{{ Platform }}"
-    

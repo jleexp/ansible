@@ -1,11 +1,5 @@
 ---
 
-  - debug:
-      msg: "ENV is {{ ENV }}."
-
-  - debug:
-      msg: "Platform is {{ Platform }}."
-
   - name: Disable SELinux
     selinux:
       state: disabled
@@ -125,20 +119,17 @@
   - name: Add swap
     stat: path=/var/swap.1
     register: swap_status
-    when: Platform == "AWS" or Platform == "GCP"
 
   - shell: |
       /usr/bin/dd if=/dev/zero of=/var/swap.1 bs=1M count=1024
       /usr/sbin/mkswap /var/swap.1
       /usr/bin/chmod 600 /var/swap.1
       /sbin//swapon /var/swap.1
-    when: (Platform == "AWS" or Platform == "GCP") and swap_status.stat.exists == false
 
   - lineinfile:
       path: /etc/fstab
       state: present
       line: '/var/swap.1     swap                                            swap    defaults        0 0'
-    when: Platform == "AWS" or Platform == "GCP"
 
   - name: Modify /etc/group
     shell: "/bin/sed -i 's/x:33:/x:333:/g' /etc/group"
