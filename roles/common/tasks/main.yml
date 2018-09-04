@@ -125,6 +125,7 @@
       /usr/sbin/mkswap /var/swap.1
       /usr/bin/chmod 600 /var/swap.1
       /sbin//swapon /var/swap.1
+    when: swap_status.stat.exists == false
 
   - lineinfile:
       path: /etc/fstab
