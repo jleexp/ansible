@@ -1,6 +1,8 @@
 ---
 - name: Play common tasks
-  hosts: localhost
+  hosts: 127.0.0.1
+  connection: local
+  become: yes
   gather_facts: no
   vars:
     ENV: "production"
